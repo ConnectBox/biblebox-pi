@@ -1,0 +1,42 @@
+# These run if there is not moodle database existing
+
+
+- name: Set Default PSQL Password
+  command: psql -c "ALTER USER postgres WITH PASSWORD '{{postgresql_user_password}}';"
+  become: true
+  become_user: postgres
+
+- name: Delete Existing Moodle Database
+  command: psql -c "DROP DATABASE IF EXISTS moodle;"
+  become: true
+  become_user: postgres  
+    
+- name: Create empty Moodle Database
+  command: psql -c "create database moodle;"
+  become: true
+  become_user: postgres
+
+- name: Remove Moodle Dump From /tmp
+  file:
+    path: /tmp/moodle_database_template.dump
+    state: absent
+    
+- name: Copy Default Postgres Database Dump To /tmp
+  template:
+    src: "{{ item.src }}"
+    dest: "/tmp/{{ item.dest }}"
+    mode: 0666
+    owner: postgres
+    group: postgres
+  with_items:
+    - { src: "moodle_database_template.dump", dest: "moodle_database_template.dump" }
+
+- name: Install Default Postgres Database for Moodle
+  command: psql -f /tmp/moodle_database_template.dump moodle
+  become: true
+  become_user: postgres
+
+- name: Recursively empty existing moodledata directory
+  shell: rm -rf /var/www/moodledata/*
+  become: true
+  ignore_errors: yes

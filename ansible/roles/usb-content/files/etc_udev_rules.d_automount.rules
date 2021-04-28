@@ -1,3 +1,4 @@
 ACTION=="add",KERNEL=="sda1",RUN+="/bin/mount -o sync,noexec,nodev,noatime,nodiratime,utf8 /dev/%k /media/usb0"
 ACTION=="add",KERNEL=="sda1",RUN+="/bin/sh -c '/usr/bin/test -f /media/usb0/.connectbox/enable-ssh && (/bin/systemctl is-active ssh.service || /bin/systemctl enable ssh.service && /bin/systemctl start ssh.service)'"
+ACTION=="add",KERNEL=="sda1",RUN+="/bin/sh -c '/usr/bin/test -f /media/usb0/*.mbz && /var/www/moodle/admin/cli/restore_all_courses.php /media/usb0/'"
 ACTION=="remove", KERNEL=="sda1", RUN+="/bin/umount /dev/%k"

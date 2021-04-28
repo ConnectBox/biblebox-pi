@@ -1,0 +1,171 @@
+---
+######################################################
+# Moodle installation presumes previously installed PHP and PostgreSQL as per the playbooks
+
+
+######################################################
+# mysql Installation
+
+- name: Add mariadb (mysql) apt key  
+  ansible.builtin.apt_key:
+    url: https://mariadb.org/mariadb_release_signing_key.asc
+    state: present
+  ignore_errors: yes
+
+- name: Add the packages in sources lists
+  shell: sh -c 'echo "deb https://mirror.nodesdirect.com/mariadb/repo/10.5/debian $(lsb_release -sc) main" > /etc/apt/sources.list.d/php.list'
+  when: ansible_os_family == 'Debian'
+  
+- name: Install mariadb (mysql) package
+  apt:
+    update_cache: yes
+    pkg: mariadb-server-10.5
+    state: present
+
+- name: Start mariadb  service
+  command: systemctl restart mysql
+  become: true
+
+- name: Check For Existing Moodle Database
+  command: mysql moodle -e "select * from mdl_course;"
+  become: true
+  register: buildDatabase
+  ignore_errors: yes
+
+- name: Overwrite database (overwrite_database=true) when no database
+  ansible.builtin.set_fact:
+    overwrite_database: true
+  when: buildDatabase is not true
+
+- name: Remove Existing Moodle database
+  command: mysql -e 'drop database if exists moodle;'
+  become: true
+  when: overwrite_database
+
+- name: Create Empty Moodle database
+  command: mysql -e 'CREATE DATABASE moodle DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;'
+  become: true
+  when: overwrite_database
+
+- name: Create moodleuser
+  command: mysql -e "GRANT SELECT,INSERT,UPDATE,DELETE,CREATE,CREATE TEMPORARY TABLES,DROP,INDEX,ALTER ON moodle.* TO 'moodleuser'@'%' IDENTIFIED BY '\!1TheWell';"
+  become: true
+  when: overwrite_database
+
+- name: Copy Default Moodle Database To /tmp   (Create a new template -> sudo mysqldump --databases moodle >/tmp/moodle_database_template.txt)
+  template:
+    src: "moodle_database_template.txt"
+    dest: "/tmp/moodle_database_template.txt"
+    mode: 0666
+  when: overwrite_database
+    
+- name: Install Default Moodle database
+  shell: "mysql moodle </tmp/moodle_database_template.txt"
+  become: true
+  when: overwrite_database
+
+- name: Add mysql remote access
+  command: "iptables -A INPUT -p tcp --dport 3306 -j ACCEPT"
+  become: true
+  when: developer_mode
+
+######################################################
+# Moodle Software Installation
+
+- name: Recursively remove existing Moodle directory
+  file:
+    path: /var/www/moodle/
+    state: absent
+
+- name: Make Moodle directory
+  file:
+    state: directory
+    path: /var/www/moodle/
+    owner: www-data
+    group: www-data
+    mode: 0775
+    
+# This is from Relay Trust's Repo
+- name: Install Moodle 3.10 repo to /var/www/moodle
+  git:
+    repo: 'https://github.com/RT-coding-team/the-well-moodle310.git'
+    dest: /var/www/moodle/
+    clone: yes
+    update: yes
+    version: origin/connectboxadmin
+
+- name: Copy customcert plugin to /var/www/moodle/mod/
+  ansible.builtin.unarchive:
+    src: ../templates/customcert.tar.gz
+    dest: /var/www/moodle/mod/
+  become: true
+  when: overwrite_database
+
+- name: Recursively empty existing moodledata directory
+  shell: rm -rf /var/www/moodledata/*
+  become: true
+  ignore_errors: yes
+  when: overwrite_database
+  
+- name: Restore moodledata directory that Moodle requires for all its functions
+  file:
+    state: directory
+    path: /var/www/moodledata/
+    owner: www-data
+    group: www-data
+    mode: 0775
+  when: overwrite_database
+
+- name: Copy filedir to /var/www/moodledata/filedir
+  ansible.builtin.unarchive:
+    src: ../templates/filedir.tar.gz
+    dest: /var/www/moodledata/
+  become: true
+  when: overwrite_database
+
+- name: configure temporary storage for Moodle cache
+  when: connectbox_os == "raspbian" 
+  mount:
+    path: '{{ item.name }}'
+    src: 'tmpfs'
+    fstype: 'tmpfs'
+    opts: 'size={{ item.size }},mode=775,uid=www-data,gid=www-data'
+    dump: '0'
+    passno: '0'
+    state: 'mounted'
+  with_items:
+    - { name: '/var/cache/moodle', size: '4M' }
+    - { name: '/var/www/moodledata/temp', size: '499M' }
+    - { name: '/var/www/moodledata/sessions', size: '4M' }
+    
+
+- name: Copy config.php to working directory
+  template:
+    src: var_www_moodle_config_php.j2
+    dest: /var/www/moodle/config.php
+
+#  Everything in Moodle runs as web server user
+- name: Recursively change ownership /var/www/moodle
+  become: true
+  file:
+    path: /var/www/moodle
+    state: directory
+    recurse: yes
+    owner: www-data
+    group: www-data
+    mode: 0775
+
+# Install generic PHP test script into the moodle directory so we can know that this is ok.    
+- name: Copy PHP info.php
+  template:
+    src: var_www_moodle_info_php.j2
+    dest: /var/www/moodle/info.php
+
+# Setup Moodle's Cron 
+- name: Setup Moodle's Cron To Run Every Minute as Per Moodle
+  ansible.builtin.cron:
+    name: "moodle cron"
+    minute: "1,16,31,46"
+    hour: "*"
+    user: www-data
+    job: "/usr/bin/php /var/www/moodle/admin/cli/cron.php >/dev/null"

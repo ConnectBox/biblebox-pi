@@ -51,6 +51,8 @@ access_log_analyzer_repo: https://github.com/ConnectBox/access-log-analyzer.git
 connectbox_client_repo: https://github.com/ConnectBox/connectbox-react-icon-client.git
 connectbox_client_path: published/
 
+php_version: "7.4"
+
 nginx_admin_block: |
       location /admin/api {
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;

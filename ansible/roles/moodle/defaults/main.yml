@@ -1,0 +1,5 @@
+---
+moodle_base_directory: "/var/www/moodle"
+
+# This is the default hostname of the connectbox and Moodle will use it unless provided by env variable during Ansible install
+hostname: "{{ connectbox_default_hostname }}"

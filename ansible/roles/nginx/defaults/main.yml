@@ -7,6 +7,7 @@ nginx_enabled_vhosts_path: /etc/nginx/sites-enabled
 # - static_site
 # If this is useful in other roles, we can define it at a higher level
 interface_type: icon_only
+nginx_vhost_file_moodle: connectbox_moodle.conf
 nginx_vhost_file_icon_only: connectbox_icon-only.conf
 nginx_vhost_file_static_site: connectbox_static-site.conf
 nginx_vhost_file_captive_portal: connectbox_captive-portal.conf

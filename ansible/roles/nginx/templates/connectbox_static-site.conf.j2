@@ -2,7 +2,7 @@ server {
     listen 80;
     # Wildcard .local i.e. respond to anything that comes in on that domain
     #  which allows us to avoid calculating the mDNS name
-    server_name $hostname .local;
+    server_name {{connectbox_default_hostname}}.cb .local;
     root {{ connectbox_usb_files_root }};
     index index.html index.htm;
     error_page 404 /index.html;

@@ -24,6 +24,10 @@
       stat:
         path: "/etc/armbian-release"
       register: armbian_release_file
+    - name: Check for AWS
+      stat:
+        path: "/usr/bin/aws"
+      register: aws_instance
     - name: Include Armbian specific variables
       include_vars: "group_vars/armbian"
       when: armbian_file.stat.exists == True or armbian_release_file.stat.exists == True

@@ -27,7 +27,6 @@
     system: yes
     createhome: no
 
-# TODO confirm this works as expected
 - name: Add www-data to _connectbox group
   user:
     name: www-data

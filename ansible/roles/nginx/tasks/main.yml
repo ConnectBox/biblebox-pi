@@ -4,6 +4,16 @@
     name: nginx-light
     state: present
 
+
+- name: Make nginx logs directory
+  file:
+    state: directory
+    path: "/var/log/connectbox/"
+    owner: www-data
+    group: www-data
+    recurse: yes
+    mode: 0755
+
 - name: Remove OS default nginx vhost
   file:
     path: "{{ nginx_enabled_vhosts_path }}/default"
@@ -36,6 +46,7 @@
     group: root
   notify: restart nginx
   with_items:
+    - { src: "{{ nginx_vhost_file_moodle }}.j2", dest: "{{ nginx_vhost_file_moodle }}" }
     - { src: "{{ nginx_vhost_file_captive_portal }}.j2", dest: "{{ nginx_vhost_file_captive_portal }}" }
     - { src: "{{ nginx_vhost_file_icon_only }}.j2", dest: "{{ nginx_vhost_file_icon_only }}" }
     - { src: "{{ nginx_vhost_file_static_site }}.j2", dest: "{{ nginx_vhost_file_static_site }}" }
@@ -44,6 +55,14 @@
   file:
     src: "{{ nginx_available_vhosts_path }}/{{ nginx_vhost_file_captive_portal }}"
     dest: "{{ nginx_enabled_vhosts_path }}/{{ nginx_vhost_file_captive_portal }}"
+    state: link
+    force: yes
+  notify: restart nginx
+
+- name: Create nginx active vhost symlink for Moodle vhost
+  file:
+    src: "{{ nginx_available_vhosts_path }}/{{ nginx_vhost_file_moodle }}"
+    dest: "{{ nginx_enabled_vhosts_path }}/{{ nginx_vhost_file_moodle }}"
     state: link
     force: yes
   notify: restart nginx

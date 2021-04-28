@@ -1,0 +1,38 @@
+#!/usr/bin/perl
+
+print "Setting Up The Well Raspberry Pi Partitions\n";
+
+my $partitions = `lsblk |grep part |wc -l`;
+if ($partitions >= 3) {
+	print "\nPartitions Already Configured\n";
+	my $partitions = `lsblk `;
+	print $partitions;
+	die;
+}
+
+my $disk = "/dev/" . `lsblk -d | grep disk | awk '{print \$1;}'`;
+
+print "\nSD Card is Named: $disk\n";
+chop ($disk);
+
+print "\nResize OS partition\n";
+my $command = "parted $disk resizepart 2 8GB";
+print "$command\n";
+system ($command);
+
+print "\nExtend File System\n";
+my $command = "resize2fs $disk" . "p2";
+print "$command\n";
+system ($command);
+
+print "\nMake Data Partition\n";
+my $command = "parted $disk mkpart primary ext4 8GB 100%";
+print "$command\n";
+system ($command);
+
+print "\nMount Data Partition\n";
+system ("cp /etc/fstab /etc/fstab.bak");
+open (SAVE, ">>/etc/fstab");
+print SAVE $disk . "p3    /var/www/moodledata    ext4    defaults,noatime  0       0\n";
+close (SAVE);
+

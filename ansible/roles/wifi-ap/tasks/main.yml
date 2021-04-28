@@ -35,6 +35,7 @@
   apt:
     name: crda
     state: present
+  when: connectbox_os == "raspbian"
 
 - name: Copy hostapd config
   template:
@@ -71,9 +72,10 @@
 # Note: this is not a handler because wlan0/hostapd might be broken in later steps
 # before the handler would be executed. This ensures that wlan0 will be up and
 # hostapd properly running before exiting this role.
-- name: Reload hostapd
+- name: Reload hostapd -- Allow ignore errors for devices without WLAN 
   shell: "ifdown {{ client_facing_if }}; sleep 1; ifup {{ client_facing_if }}"
   when: etc_hostapd_hostapd_conf.changed
+  ignore_errors: yes
   tags:
     # This task on change is intentionally not a handler; don't trigger ANSIBLE0016
     - skip_ansible_lint
